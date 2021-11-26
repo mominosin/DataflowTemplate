@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 public class SpannerSource implements SourceModule {
 
@@ -742,7 +743,7 @@ public class SpannerSource implements SourceModule {
                 final String query = c.element().getValue();
                 final Statement statement = Statement.of(query);
                 try(final BatchReadOnlyTransaction transaction = this.client
-                        .batchReadOnlyTransaction(TimestampBound.strong())) {
+                        .batchReadOnlyTransaction(TimestampBound.ofExactStaleness(15, TimeUnit.SECONDS))) {
 
                     final Instant eventTimestamp = c.timestamp();
                     try {
@@ -840,14 +841,14 @@ public class SpannerSource implements SourceModule {
 
     private static TimestampBound toTimestampBound(final String timestampBoundString) {
         if(timestampBoundString == null) {
-            return TimestampBound.strong();
+            return TimestampBound.ofExactStaleness(15, TimeUnit.SECONDS);
         } else {
             try {
                 final Instant instant = Instant.parse(timestampBoundString);
                 final com.google.cloud.Timestamp timestamp = com.google.cloud.Timestamp.ofTimeMicroseconds(instant.getMillis() * 1000);
                 return TimestampBound.ofReadTimestamp(timestamp);
             } catch (Exception e) {
-                return TimestampBound.strong();
+                return TimestampBound.ofExactStaleness(15, TimeUnit.SECONDS);
             }
         }
     }
